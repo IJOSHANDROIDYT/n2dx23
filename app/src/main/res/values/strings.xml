@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">nx2android</string>
+    <string name="tab_port">Port</string>
+    <string name="tab_setup">Setup</string>
+    <string name="tab_games">Games</string>
+    <string name="tab_gamepad">Gamepad</string>
+    <string name="port_button">Port</string>
+    <string name="cancel_button">Cancel</string>
+    <string name="open_output_folder">Open output folder</string>
+    <string name="install_on_device">Install on device</string>
+    <string name="download_missing_tools">Download missing tools</string>
+    <string name="save_and_check">Save and check</string>
+</resources>

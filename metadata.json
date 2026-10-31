@@ -1,0 +1,6 @@
+{
+  "name": "nx2android",
+  "description": "Port your own Nintendo Switch games to Android natively with Vulkan NVN replay, game profile database, and interactive themed virtual gamepad studio.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

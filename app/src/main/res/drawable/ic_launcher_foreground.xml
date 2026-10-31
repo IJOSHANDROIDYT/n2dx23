@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Left Joy-Con Crimson Pill -->
+    <path
+        android:fillColor="#FF2E54"
+        android:pathData="M30,30 C25,30 22,34 22,40 L22,68 C22,74 25,78 30,78 L46,78 L46,30 Z" />
+    <!-- Left Stick Dot -->
+    <path
+        android:fillColor="#0F141C"
+        android:pathData="M34,46 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+    <!-- Right Joy-Con Cyan Pill -->
+    <path
+        android:fillColor="#00E5FF"
+        android:pathData="M62,30 L78,30 C83,30 86,34 86,40 L86,68 C86,74 83,78 78,78 L62,78 Z" />
+    <!-- Right Stick Dot -->
+    <path
+        android:fillColor="#0F141C"
+        android:pathData="M74,60 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+    <!-- Center Android Bridge Bolt -->
+    <path
+        android:fillColor="#00E676"
+        android:pathData="M50,36 L58,36 L54,51 L60,51 L49,72 L52,56 L47,56 Z" />
+</vector>
