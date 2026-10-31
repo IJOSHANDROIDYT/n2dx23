@@ -1,0 +1,334 @@
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> cd "C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game"
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> $javaExe = Get-ChildItem -Path "C:\Program Files\Android\Android Studio" -Recurse -Filter "java.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> if ($javaExe) {
+>>     Write-Host ">> Java encontrado en: $($javaExe.FullName)" -ForegroundColor Cyan
+>>     $env:JAVA_HOME = $javaExe.Directory.Parent.FullName
+>>     $env:PATH = "$($javaExe.Directory.FullName);$env:PATH"
+>> } else {
+>>     Write-Host ">> ADVERTENCIA: No se encontró el Java de Android Studio." -ForegroundColor Yellow
+>> }
+>> Java encontrado en: C:\Program Files\Android\Android Studio\jbr\bin\java.exe
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> $buildTools = Get-ChildItem "C:\Users\jjose\AppData\Local\Android\Sdk\build-tools" -Directory | Sort-Object Name -Descending | Select-Object -First 1
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> $apksigner = Join-Path $buildTools.FullName "apksigner.bat"
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> Write-Host ">> Firmando el APK..." -ForegroundColor Cyan
+>> Firmando el APK...
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> & $apksigner sign --ks ".\debug.keystore" --ks-pass pass:android --key-pass pass:android ".\NieRAutomata_aligned.apk"
+
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::loadLibrary has been called by org.conscrypt.NativeLibraryUtil in an unnamed module (file:/C:/Users/jjose/AppData/Local/Android/Sdk/build-tools/37.0.0/lib/apksigner.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> Write-Host ">> Instalando en el dispositivo..." -ForegroundColor Cyan
+>> Instalando en el dispositivo...
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb install -r -d ".\NieRAutomata_aligned.apk"
+Performing Incremental Install
+Performing Streamed Install
+adb.exe: failed to install .\NieRAutomata_aligned.apk: Failure [-124: Failed parse during installPackageLI: Targeting R+ (version 30 and above) requires the resources.arsc of installed APKs to be stored uncompressed and aligned on a 4-byte boundary]
+
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> cd "C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game"
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> $pyScript = @"
+>> import zipfile
+>>
+>> apk_in = 'NieRAutomata.apk'
+>> apk_out = 'NieRAutomata_injected.apk'
+>> driver_path = 'vulkan.purple.so'
+>>
+>> with zipfile.ZipFile(apk_in, 'r') as zin, zipfile.ZipFile(apk_out, 'w') as zout:
+>>     for item in zin.infolist():
+>>         # Copiamos todos los archivos originales manteniendo su nivel de compresión exacto
+>>         if item.filename != 'lib/arm64-v8a/libvulkan_freedreno.so':
+>>             zout.writestr(item, zin.read(item.filename))
+>>
+>>     # Inyectamos el driver nuevo
+>>     zout.write(driver_path, 'lib/arm64-v8a/libvulkan_freedreno.so')
+>> print('>> Inyección de Python completada.')
+>> "@
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> Set-Content -Path "inyectar_driver.py" -Value $pyScript -Encoding UTF8
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> python inyectar_driver.py
+>> Inyección de Python completada.
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> $buildTools = Get-ChildItem "C:\Users\jjose\AppData\Local\Android\Sdk\build-tools" -Directory | Sort-Object Name -Descending | Select-Object -First 1
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> $zipalign = Join-Path $buildTools.FullName "zipalign.exe"
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> & $zipalign -p -f 4 ".\NieRAutomata_injected.apk" ".\NieRAutomata_aligned.apk"
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> $javaExe = Get-ChildItem -Path "C:\Program Files\Android\Android Studio" -Recurse -Filter "java.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> if ($javaExe) {
+>>     $env:JAVA_HOME = $javaExe.Directory.Parent.FullName
+>>     $env:PATH = "$($javaExe.Directory.FullName);$env:PATH"
+>> }
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> $apksigner = Join-Path $buildTools.FullName "apksigner.bat"
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> Write-Host ">> Firmando el APK..." -ForegroundColor Cyan
+>> Firmando el APK...
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> & $apksigner sign --ks ".\debug.keystore" --ks-pass pass:android --key-pass pass:android ".\NieRAutomata_aligned.apk"
+
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::loadLibrary has been called by org.conscrypt.NativeLibraryUtil in an unnamed module (file:/C:/Users/jjose/AppData/Local/Android/Sdk/build-tools/37.0.0/lib/apksigner.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> Write-Host ">> Instalando en el dispositivo..." -ForegroundColor Cyan
+>> Instalando en el dispositivo...
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb install -r -d ".\NieRAutomata_aligned.apk"
+Performing Incremental Install
+Performing Streamed Install
+adb.exe: failed to install .\NieRAutomata_aligned.apk: Failure [INSTALL_FAILED_UPDATE_INCOMPATIBLE: Existing package org.nx2a.nierautomata signatures do not match newer version; ignoring!]
+
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> }adb shell cmd package uninstall -k org.nx2a.nierautomata
+En línea: 1 Carácter: 1
++ }adb shell cmd package uninstall -k org.nx2a.nierautomata
++ ~
+Token '}' inesperado en la expresión o la instrucción.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : UnexpectedToken
+
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb shell cmd package uninstall -k org.nx2a.nierautomata
+Success
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb install ".\NieRAutomata_aligned.apk"
+Performing Incremental Install
+Performing Streamed Install
+adb.exe: failed to install .\NieRAutomata_aligned.apk: Failure [INSTALL_FAILED_UPDATE_INCOMPATIBLE: Existing package org.nx2a.nierautomata signatures do not match newer version; ignoring!]
+
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb install ".\NieRAutomata_aligned.apk"
+Performing Incremental Install
+Performing Streamed Install
+adb.exe: failed to install .\NieRAutomata_aligned.apk: Failure [INSTALL_FAILED_UPDATE_INCOMPATIBLE: Existing package org.nx2a.nierautomata signatures do not match newer version; ignoring!]
+
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> cd "C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game"
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb shell mv /sdcard/Android/data/org.nx2a.nierautomata /sdcard/Android/data/org.nx2a.nierautomata_backup
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb uninstall org.nx2a.nierautomata
+Success
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb install ".\NieRAutomata_aligned.apk"
+Performing Incremental Install
+Performing Streamed Install
+Success
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb shell mv /sdcard/Android/data/org.nx2a.nierautomata_backup /sdcard/Android/data/org.nx2a.nierautomata
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb shell rm -f /sdcard/Android/data/org.nx2a.nierautomata/files/log.txt
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb logcat -c
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb shell "logcat -d | grep -iE 'nx2a|fatal|crash|vulkan|freedreno|androidruntime' | tail -n 30"
+10-30 20:46:01.423  1965  1965 I SurfaceFlinger: [LayerHierarchy{RequestedLayerState{60680d6 org.nx2a.nierautomata/android.app.NativeActivity#55723} no children}] RelativeParent to null
+10-30 20:46:01.423 27039 27039 I AFL#SSS:AssistHolder: onActivityEvent Snapshot Destroyed:ComponentInfo{org.nx2a.nierautomata/android.app.NativeActivity}
+10-30 20:46:01.424  1965  3857 I SurfaceFlinger: id=55724 Removed VRI-org.nx2a.nierautomata/android.app.NativeActivity$_6883#55724 (151)
+10-30 20:46:01.424  1965  3857 I SurfaceFlinger: id=55723 Removed 60680d6 org.nx2a.nierautomata/android.app.NativeActivity#55723 (151)
+10-30 20:46:01.439  1965  1965 I SurfaceFlinger: destroyed VRI-org.nx2a.nierautomata/android.app.NativeActivity$_6883#55724 form LifecycleManager
+10-30 20:46:01.439  1965  1965 I SurfaceFlinger: destroyed 60680d6 org.nx2a.nierautomata/android.app.NativeActivity#55723 form LifecycleManager
+10-30 20:46:01.439  1965  1965 I SurfaceFlinger: id=55724 onLayerDestroyed from LayerHierarchyBuilder(RequestedLayerState{VRI-org.nx2a.nierautomata/android.app.NativeActivity$_6883#55724 !handle})
+10-30 20:46:01.439  1965  1965 I SurfaceFlinger: id=55723 onLayerDestroyed from LayerHierarchyBuilder(RequestedLayerState{60680d6 org.nx2a.nierautomata/android.app.NativeActivity#55723 !handle})
+10-30 20:46:01.440  1965  1965 I SurfaceFlinger: id=55724 Destroyed VRI-org.nx2a.nierautomata/android.app.NativeActivity$_6883#55724
+10-30 20:46:01.440  1965  1965 I SurfaceFlinger: id=55723 Destroyed 60680d6 org.nx2a.nierautomata/android.app.NativeActivity#55723
+10-30 20:46:01.466  3014  3313 V WindowManager: Start calculating TransitionInfo based on participants: {WallpaperWindowToken{afafaa showWhenLocked=false}_<system>, Task{1256d75 #1 type=home}, ActivityRecord{36652032 u0 org.nx2a.nierautomata/android.app.NativeActivity t-1 f}}, Task{44fdf91 #1009 type=home I=com.sec.android.app.launcher/.activities.LauncherActivity}, Task{cd82439 #1421 type=standard A=10380:org.nx2a.nierautomata}, ActivityRecord{238386044 u0 com.sec.android.app.launcher/.activities.LauncherActivity t1009}}
+10-30 20:46:01.473  3014  3309 V WindowManager: Sent Transition (#10152) createdAt=10-30 20:46:01.408 via request=TransitionRequestInfo { type = CLOSE, triggerTask = TaskInfo{userId=0 taskId=1421 effectiveUid=10380 displayId=0 isRunning=true baseIntent=Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10200000 cmp=org.nx2a.nierautomata/android.app.NativeActivity } baseActivity=ComponentInfo{org.nx2a.nierautomata/android.app.NativeActivity} topActivity=ComponentInfo{org.nx2a.nierautomata/android.app.NativeActivity} origActivity=null realActivity=ComponentInfo{org.nx2a.nierautomata/android.app.NativeActivity} realActivityIsAppLockEnabled=false numActivities=1 lastActiveTime=190721447 supportsMultiWindow=true supportsMultiWindowWithoutConstraints=true resizeMode=1 isResizeable=true minWidth=-1 minHeight=-1 maxWidth=-1 maxHeight=-1 defaultMinSize=220 desktopDefaultMinSize=304 token=WCT{RemoteToken{fffe7d5 Task{cd82439 #1421 type=standard A=10380:org.nx2a.nierautomata}}} topActivityType=1 pictureInPictureParams=null shouldDockBigOverlays=false launchIntoPipHostTaskId=-1 lastParentTaskIdBeforePip=-1 displayCutoutSafeInsets=Rect(94, 0 - 0, 0) topActivityInfo=ActivityInfo{4124edb android.app.NativeActivity} launchCookies=[android.os.BinderProxy@8347d78] positionInParent=Point(0, 0) parentTaskId=-1 isFocused=true isInteractive=true isVisible=true isVisibleRequested=true isTopActivityNoDisplay=false isSleeping=false locusId=null displayAreaFeatureId=1 isTopActivityTransparent=false isActivityStackTransparent=false lastNonFullscreenBounds=Rect(81, 606 - 999, 1764) leafTaskBoundsFromOptions= false capturedLink=null capturedLinkTimestamp=0 requestedVisibleTypes=503 topActivityRequestOpenInBrowserEducationTimestamp=0 appCompatTaskInfo=AppCompatTaskInfo { topActivityInSizeCompat=false isLeafTask= true eligibleForLetterboxEducation= false isLetterboxEducationEnabled= false isLetterboxDoubleTapEnabled= false eligibleForUserAspectRatioButton= false topActivityBoundsLetterboxed= false isFromLetterboxDoubleTap= false topActivityLetterboxVerticalPosition= -1 topActivityLetterboxHorizontalPosition= -1 topActivityLetterboxWidth=-1 topActivityLetterboxHeight=-1 topActivityAppBounds=Rect(0, 0 - 2316, 1080) isUserFullscreenOverrideEnabled=false isSystemFullscreenOverrideEnabled=false hasMinAspectRatioOverride=false topActivityLetterboxBounds=null topActivityBounds=nullshowMultiTaskingAppCompatUI=true topActivityInDisplayCompat=false showForceRotationButton=false forceRotationButtonState=0 orientationPolicyToRestore=0showAspectRatioButton=falseaspectRatioToRestore=0letterboxStateBeforeAspectRatioRestore=0 singleTapFromLetterbox=false topNonResizableActivityAspectRatio=-1.0} topActivityMainWindowFrame=null originallySupportedMultiWindow=true hasWallpaper=false rootAffinity=10380:org.nx2a.nierautomata isTopTaskInStage=false LaunchedFromMultistarCoverLauncherTask=false isAllowedSeamlessRotation=false isTopTransparentActivity=false isAliasManaged=false hasConfigChanged=false isAiKeyRemoveAppTask=false isActivityEmbeddingSplitsEnabled=falseisPackageNightModeActive=true isKeepScreenOn=true safeCutoutInsets=null isAppBubble=false lastAttachedDisplayId=-1}, pipChange = null, remoteTransitionInfo = null, displayChanges = null, requestedLocation = null, userChange = null, windowingLayerChange = null, fullscreenRequestChange = null, flags = 0, debugId = 10152 }
+10-30 20:46:01.490  1965  1965 I SurfaceFlinger: [LayerHierarchy{RequestedLayerState{ActivityRecord{36652032 u0 org.nx2a.nierautomata/android.app.NativeActivity t1421}#55705} 2 children}] reparent to OffscreenRoot
+10-30 20:46:01.490  1965  1965 I SurfaceFlinger: [LayerHierarchy{RequestedLayerState{ActivityRecord{36652032 u0 org.nx2a.nierautomata/android.app.NativeActivity t1421}#55705} 2 children}] RelativeParent to null
+10-30 20:46:02.010  3014  4653 V WindowManager:    ChangeInfo{d002a6a container=ActivityRecord{36652032 u0 org.nx2a.nierautomata/android.app.NativeActivity t-1 f}} flags=0x0}
+10-30 20:46:02.010  3014  4653 V WindowManager:    ChangeInfo{c5d0ad3 container=Task{cd82439 #1421 type=standard A=10380:org.nx2a.nierautomata} flags=0x0}
+10-30 20:46:02.011  3014  4653 D PersonaActivityHelper: token.toString()  Token{26fa7e ActivityRecord{36652032 u0 org.nx2a.nierautomata/android.app.NativeActivity t-1 f}}}
+10-30 20:46:02.011  1965  2050 I SurfaceFlinger: id=55705 Removed ActivityRecord{36652032 u0 org.nx2a.nierautomata/android.app.NativeActivity t1421}#55705 (151)
+10-30 20:46:02.023  1965  1965 I SurfaceFlinger: destroyed ActivityRecord{36652032 u0 org.nx2a.nierautomata/android.app.NativeActivity t1421}#55705 form LifecycleManager
+10-30 20:46:02.023  1965  1965 I SurfaceFlinger: destroyed 8d63d32 ActivityRecordInputSink org.nx2a.nierautomata/android.app.NativeActivity#55711 form LifecycleManager
+10-30 20:46:02.023  1965  1965 I SurfaceFlinger: id=55705 onLayerDestroyed from LayerHierarchyBuilder(RequestedLayerState{ActivityRecord{36652032 u0 org.nx2a.nierautomata/android.app.NativeActivity t1421}#55705 !handle})
+10-30 20:46:02.023  1965  1965 I SurfaceFlinger: id=55711 onLayerDestroyed from LayerHierarchyBuilder(RequestedLayerState{8d63d32 ActivityRecordInputSink org.nx2a.nierautomata/android.app.NativeActivity#55711 !handle z=-2147483648})
+10-30 20:46:02.024  1965  1965 I SurfaceFlinger: id=55705 Destroyed ActivityRecord{36652032 u0 org.nx2a.nierautomata/android.app.NativeActivity t1421}#55705
+10-30 20:46:02.024  1965  1965 I SurfaceFlinger: id=55711 Destroyed 8d63d32 ActivityRecordInputSink org.nx2a.nierautomata/android.app.NativeActivity#55711
+10-30 20:46:03.910  3014  4242 I Pageboost: db update :org.nx2a.nierautomata ret 1
+10-30 20:46:06.188  1965  5429 I SurfaceFlinger: id=55623 Removed StartingSurface#ActivityRecord{35854659 u0 org.nx2a.nierautomata/android.app.NativeActivity t1419}#55623 (143)
+10-30 20:46:06.191  1965  1965 I SurfaceFlinger: destroyed StartingSurface#ActivityRecord{35854659 u0 org.nx2a.nierautomata/android.app.NativeActivity t1419}#55623 form LifecycleManager
+10-30 20:46:06.191  1965  1965 I SurfaceFlinger: id=55623 onLayerDestroyed from LayerHierarchyBuilder(RequestedLayerState{StartingSurface#ActivityRecord{35854659 u0 org.nx2a.nierautomata/android.app.NativeActivity t1419}#55623 !handle z=2147483647})
+10-30 20:46:06.192  1965  1965 I SurfaceFlinger: id=55623 Destroyed StartingSurface#ActivityRecord{35854659 u0 org.nx2a.nierautomata/android.app.NativeActivity t1419}#55623
+10-30 20:46:06.780 21123 21123 I adbd    : adbd service requested 'shell,v2,TERM=xterm-256color,raw:logcat -d | grep -iE 'nx2a|fatal|crash|vulkan|freedreno|androidruntime' | tail -n 30'
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> cd "C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game"
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game>
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> # 1. Actualizar el script de inyección para usar el nuevo Turnip v26
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> $pyScript = @"
+>> import zipfile
+>>
+>> apk_in = 'NieRAutomata.apk'
+>> apk_out = 'NieRAutomata_injected.apk'
+>> driver_path = 'vulkan.ad07xx.so'
+>>
+>> with zipfile.ZipFile(apk_in, 'r') as zin, zipfile.ZipFile(apk_out, 'w') as zout:
+>>     for item in zin.infolist():
+>>         if item.filename != 'lib/arm64-v8a/libvulkan_freedreno.so':
+>>             zout.writestr(item, zin.read(item.filename))
+>>
+>>     zout.write(driver_path, 'lib/arm64-v8a/libvulkan_freedreno.so')
+>> print('>> Inyección de Python completada con Turnip v26.')
+>> "@
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> Set-Content -Path "inyectar_driver.py" -Value $pyScript -Encoding UTF8
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> python inyectar_driver.py
+>> Inyección de Python completada con Turnip v26.
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game>
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> # 2. Alinear a 4 bytes
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> $buildTools = Get-ChildItem "C:\Users\jjose\AppData\Local\Android\Sdk\build-tools" -Directory | Sort-Object Name -Descending | Select-Object -First 1
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> $zipalign = Join-Path $buildTools.FullName "zipalign.exe"
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> & $zipalign -p -f 4 ".\NieRAutomata_injected.apk" ".\NieRAutomata_aligned.apk"
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game>
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> # 3. Configurar Java y firmar
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> $javaExe = Get-ChildItem -Path "C:\Program Files\Android\Android Studio" -Recurse -Filter "java.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> if ($javaExe) {
+>>     $env:JAVA_HOME = $javaExe.Directory.Parent.FullName
+>>     $env:PATH = "$($javaExe.Directory.FullName);$env:PATH"
+>> }
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> $apksigner = Join-Path $buildTools.FullName "apksigner.bat"
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> & $apksigner sign --ks ".\debug.keystore" --ks-pass pass:android --key-pass pass:android ".\NieRAutomata_aligned.apk"
+
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::loadLibrary has been called by org.conscrypt.NativeLibraryUtil in an unnamed module (file:/C:/Users/jjose/AppData/Local/Android/Sdk/build-tools/37.0.0/lib/apksigner.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game>
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> # 4. Desinstalar (conservando 11GB), Instalar y Limpiar log
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb shell cmd package uninstall -k org.nx2a.nierautomata
+Success
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb install ".\NieRAutomata_aligned.apk"
+Performing Incremental Install
+Performing Streamed Install
+Success
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb shell rm -f /sdcard/Android/data/org.nx2a.nierautomata/files/log.txt
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> Write-Host ">> ¡Listo! Abre el juego." -ForegroundColor Green
+>> ¡Listo! Abre el juego.
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> cd "C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game"
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> $pyScript = @"
+>> import zipfile
+>>
+>> apk_in = 'NieRAutomata.apk'
+>> apk_out = 'NieRAutomata_injected.apk'
+>> driver_path = 'vulkan.ad07xx.so'
+>>
+>> with zipfile.ZipFile(apk_in, 'r') as zin, zipfile.ZipFile(apk_out, 'w') as zout:
+>>     for item in zin.infolist():
+>>         if item.filename != 'lib/arm64-v8a/libvulkan_freedreno.so':
+>>             zout.writestr(item, zin.read(item.filename))
+>>
+>>     zout.write(driver_path, 'lib/arm64-v8a/libvulkan_freedreno.so')
+>> print('>> Inyección de Python completada con Turnip v26.')
+>> "@
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> Set-Content -Path "inyectar_driver.py" -Value $pyScript -Encoding UTF8
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> python inyectar_driver.py
+>> Inyección de Python completada con Turnip v26.
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> $buildTools = Get-ChildItem "C:\Users\jjose\AppData\Local\Android\Sdk\build-tools" -Directory | Sort-Object Name -Descending | Select-Object -First 1
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> $zipalign = Join-Path $buildTools.FullName "zipalign.exe"
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> & $zipalign -p -f 4 ".\NieRAutomata_injected.apk" ".\NieRAutomata_aligned.apk"
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> $javaExe = Get-ChildItem -Path "C:\Program Files\Android\Android Studio" -Recurse -Filter "java.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> if ($javaExe) {
+>>     $env:JAVA_HOME = $javaExe.Directory.Parent.FullName
+>>     $env:PATH = "$($javaExe.Directory.FullName);$env:PATH"
+>> }
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> $apksigner = Join-Path $buildTools.FullName "apksigner.bat"
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> & $apksigner sign --ks ".\debug.keystore" --ks-pass pass:android --key-pass pass:android ".\NieRAutomata_aligned.apk"
+
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::loadLibrary has been called by org.conscrypt.NativeLibraryUtil in an unnamed module (file:/C:/Users/jjose/AppData/Local/Android/Sdk/build-tools/37.0.0/lib/apksigner.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb shell cmd package uninstall -k org.nx2a.nierautomata
+Success
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb install ".\NieRAutomata_aligned.apk"
+Performing Incremental Install
+Performing Streamed Install
+Success
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb shell rm -f /sdcard/Android/data/org.nx2a.nierautomata/files/log.txt
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb shell "grep -iE 'vulkan|turnip|adreno|qualcomm|freedreno|driver' /sdcard/Android/data/org.nx2a.nierautomata/files/log.txt | head -n 20"
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb shell cmd package uninstall -k org.nx2a.nierautomata
+Success
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb install ".\NieRAutomata_aligned.apk"
+Performing Incremental Install
+Performing Streamed Install
+Success
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb logcat -c
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb shell "logcat -d | grep -iE 'DEBUG|fatal signal|backtrace|vulkan|freedreno' | tail -n 40"
+10-30 20:53:49.512  5058  5158 I SurfaceControl: apply, lowDebugName=drawThemeBGColor, caller=android.view.SurfaceControl$Transaction.apply:3845 android.view.SurfaceControl$Transaction.apply:3795 com.android.wm.shell.startingsurface.SplashscreenContentDrawer.drawThemeBGColor:83 com.android.wm.shell.startingsurface.SplashscreenContentDrawer.makeSplashScreenContentView:197 com.android.wm.shell.startingsurface.SplashscreenContentDrawer$$ExternalSyntheticLambda9.run:24 android.os.Handler.handleCallback:1095
+10-30 20:53:49.514  5058  5117 V WindowManagerShell: Transition requested (#10166): android.os.BinderProxy@39d8a24 TransitionRequestInfo { type = OPEN, triggerTask = TaskInfo{userId=0 taskId=1425 effectiveUid=10380 displayId=0 isRunning=true baseIntent=Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10200000 cmp=org.nx2a.nierautomata/android.app.NativeActivity } baseActivity=ComponentInfo{org.nx2a.nierautomata/android.app.NativeActivity} topActivity=ComponentInfo{org.nx2a.nierautomata/android.app.NativeActivity} origActivity=null realActivity=ComponentInfo{org.nx2a.nierautomata/android.app.NativeActivity} realActivityIsAppLockEnabled=false numActivities=1 lastActiveTime=191192040 supportsMultiWindow=true supportsMultiWindowWithoutConstraints=true resizeMode=1 isResizeable=true minWidth=-1 minHeight=-1 maxWidth=-1 maxHeight=-1 defaultMinSize=220 desktopDefaultMinSize=304 token=WCT{android.os.BinderProxy@602f98d} topActivityType=1 pictureInPictureParams=null shouldDockBigOverlays=false launchIntoPipHostTaskId=-1 lastParentTaskIdBeforePip=-1 displayCutoutSafeInsets=Rect(0, 94 - 0, 0) topActivityInfo=ActivityInfo{75b6742 android.app.NativeActivity} launchCookies=[android.os.BinderProxy@a6d4353] positionInParent=Point(0, 0) parentTaskId=-1 isFocused=true isInteractive=true isVisible=false isVisibleRequested=true isTopActivityNoDisplay=false isSleeping=false locusId=null displayAreaFeatureId=1 isTopActivityTransparent=false isActivityStackTransparent=false lastNonFullscreenBounds=Rect(81, 606 - 999, 1764) leafTaskBoundsFromOptions= false capturedLink=null capturedLinkTimestamp=0 requestedVisibleTypes=503 topActivityRequestOpenInBrowserEducationTimestamp=0 appCompatTaskInfo=AppCompatTaskInfo { topActivityInSizeCompat=false isLeafTask= true eligibleForLetterboxEducation= false isLetterboxEducationEnabled= false isLetterboxDoubleTapEnabled= false eligibleForUserAspectRatioButton= false topActivityBoundsLetterboxed= false isFromLetterboxDoubleTap= false topActivityLetterboxVerticalPosition= -1 topActivityLetterboxHorizontalPosition= -1 topActivityLetterboxWidth=-1 topActivityLetterboxHeight=-1 topActivityAppBounds=Rect(0, 0 - 2316, 1080) isUserFullscreenOverrideEnabled=false isSystemFullscreenOverrideEnabled=false hasMinAspectRatioOverride=false topActivityLetterboxBounds=null topActivityBounds=nullshowMultiTaskingAppCompatUI=true topActivityInDisplayCompat=false showForceRotationButton=false forceRotationButtonState=0 orientationPolicyToRestore=0showAspectRatioButton=falseaspectRatioToRestore=0letterboxStateBeforeAspectRatioRestore=0 singleTapFromLetterbox=false topNonResizableActivityAspectRatio=-1.0} topActivityMainWindowFrame=null originallySupportedMultiWindow=true hasWallpaper=false rootAffinity=10380:org.nx2a.nierautomata isTopTaskInStage=false LaunchedFromMultistarCoverLauncherTask=false isAllowedSeamlessRotation=false isTopTransparentActivity=false isAliasManaged=false hasConfigChanged=false isAiKeyRemoveAppTask=false isActivityEmbeddingSplitsEnabled=falseisPackageNightModeActive=true safeCutoutInsets=null isAppBubble=false lastAttachedDisplayId=-1}, pipChange = null, remoteTransitionInfo = RemoteTransitionInfo { remoteTransition = android.window.IRemoteTransition$Stub$Proxy@3b2490, debugName = QuickstepLaunch, filter = null }, displayChanges = null, requestedLocation = null, userChange = null, windowingLayerChange = null, fullscreenRequestChange = null, flags = 0, debugId = 10166 }
+10-30 20:53:49.514  5058  5117 V WindowManagerShell: RemoteTransition directly requested for (#10166) android.os.BinderProxy@39d8a24: RemoteTransition { remoteTransition = android.window.IRemoteTransition$Stub$Proxy@3b2490, appThread = null, debugName = QuickstepLaunch, filter = null }
+10-30 20:53:49.517  3014  3309 V WindowManager: Sent Transition (#10166) createdAt=10-30 20:53:49.496 via request=TransitionRequestInfo { type = OPEN, triggerTask = TaskInfo{userId=0 taskId=1425 effectiveUid=10380 displayId=0 isRunning=true baseIntent=Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10200000 cmp=org.nx2a.nierautomata/android.app.NativeActivity } baseActivity=ComponentInfo{org.nx2a.nierautomata/android.app.NativeActivity} topActivity=ComponentInfo{org.nx2a.nierautomata/android.app.NativeActivity} origActivity=null realActivity=ComponentInfo{org.nx2a.nierautomata/android.app.NativeActivity} realActivityIsAppLockEnabled=false numActivities=1 lastActiveTime=191192040 supportsMultiWindow=true supportsMultiWindowWithoutConstraints=true resizeMode=1 isResizeable=true minWidth=-1 minHeight=-1 maxWidth=-1 maxHeight=-1 defaultMinSize=220 desktopDefaultMinSize=304 token=WCT{RemoteToken{7327e4f Task{ce1c6f #1425 type=standard A=10380:org.nx2a.nierautomata}}} topActivityType=1 pictureInPictureParams=null shouldDockBigOverlays=false launchIntoPipHostTaskId=-1 lastParentTaskIdBeforePip=-1 displayCutoutSafeInsets=Rect(0, 94 - 0, 0) topActivityInfo=ActivityInfo{31609dc android.app.NativeActivity} launchCookies=[android.os.BinderProxy@38b6ae5] positionInParent=Point(0, 0) parentTaskId=-1 isFocused=true isInteractive=true isVisible=false isVisibleRequested=true isTopActivityNoDisplay=false isSleeping=false locusId=null displayAreaFeatureId=1 isTopActivityTransparent=false isActivityStackTransparent=false lastNonFullscreenBounds=Rect(81, 606 - 999, 1764) leafTaskBoundsFromOptions= false capturedLink=null capturedLinkTimestamp=0 requestedVisibleTypes=503 topActivityRequestOpenInBrowserEducationTimestamp=0 appCompatTaskInfo=AppCompatTaskInfo { topActivityInSizeCompat=false isLeafTask= true eligibleForLetterboxEducation= false isLetterboxEducationEnabled= false isLetterboxDoubleTapEnabled= false eligibleForUserAspectRatioButton= false topActivityBoundsLetterboxed= false isFromLetterboxDoubleTap= false topActivityLetterboxVerticalPosition= -1 topActivityLetterboxHorizontalPosition= -1 topActivityLetterboxWidth=-1 topActivityLetterboxHeight=-1 topActivityAppBounds=Rect(0, 0 - 2316, 1080) isUserFullscreenOverrideEnabled=false isSystemFullscreenOverrideEnabled=false hasMinAspectRatioOverride=false topActivityLetterboxBounds=null topActivityBounds=nullshowMultiTaskingAppCompatUI=true topActivityInDisplayCompat=false showForceRotationButton=false forceRotationButtonState=0 orientationPolicyToRestore=0showAspectRatioButton=falseaspectRatioToRestore=0letterboxStateBeforeAspectRatioRestore=0 singleTapFromLetterbox=false topNonResizableActivityAspectRatio=-1.0} topActivityMainWindowFrame=null originallySupportedMultiWindow=true hasWallpaper=false rootAffinity=10380:org.nx2a.nierautomata isTopTaskInStage=false LaunchedFromMultistarCoverLauncherTask=false isAllowedSeamlessRotation=false isTopTransparentActivity=false isAliasManaged=false hasConfigChanged=false isAiKeyRemoveAppTask=false isActivityEmbeddingSplitsEnabled=falseisPackageNightModeActive=true safeCutoutInsets=null isAppBubble=false lastAttachedDisplayId=-1}, pipChange = null, remoteTransitionInfo = RemoteTransitionInfo { remoteTransition = android.window.IRemoteTransition$Stub$Proxy@f0c79ba, debugName = QuickstepLaunch, filter = null }, displayChanges = null, requestedLocation = null, userChange = null, windowingLayerChange = null, fullscreenRequestChange = null, flags = 0, debugId = 10166 }
+10-30 20:53:49.528  5058  5117 V WindowManagerShell:  Delegate animation for (#10166) to RemoteTransition { remoteTransition = android.window.IRemoteTransition$Stub$Proxy@3b2490, appThread = null, debugName = QuickstepLaunch, filter = null }
+10-30 20:53:49.552  3014  3313 I SurfaceControl: apply, lowDebugName=startRemoteWallpaperAnimation_18016808, caller=android.view.SurfaceControl$Transaction.apply:3845 android.view.SurfaceControl$Transaction.apply:3795 com.android.server.wm.WindowAnimator.animate:465 com.android.server.wm.WindowAnimator$$ExternalSyntheticLambda1.onVsync:23 android.view.Choreographer$CallbackRecord.run:1995 android.view.Choreographer.doCallbacks:1440
+10-30 20:53:50.197  5058  5117 V WindowManagerShell: Transition requested (#10167): android.os.BinderProxy@8ee6808 TransitionRequestInfo { type = CHANGE, triggerTask = null, pipChange = null, remoteTransitionInfo = null, displayChanges = [DisplayChange { displayId = 0, startAbsBounds = null, endAbsBounds = null, endDisplayAreaInfo = null, startRotation = 0, endRotation = 1, physicalDisplayChanged = false, disconnectReparentDisplay = -1, endInsetsState = InsetsState: {mDisplayFrame=Rect(0, 0 - 2316, 1080), mDisplayCutout=DisplayCutout{insets=Rect(94, 0 - 0, 0) waterfall=Insets{left=0, top=0, right=0, bottom=0} boundingRect={Bounds=[Rect(0, 513 - 94, 567), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0)]} cutoutPathParserInfo={CutoutPathParserInfo{displayWidth=1080 displayHeight=2316 physicalDisplayWidth=1080 physicalDisplayHeight=2316 density={2.8125} cutoutSpec={M 0,0 H -9.6 V 33.33333333333333 H 9.6 V 0 H 0 Z @dp} rotation={1} scale={1.0} physicalPixelDisplaySizeRatio={1.0}}} sideOverrides={}}, mRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=11, center=Point(11, 11)}, RoundedCorner{position=TopRight, radius=11, center=Point(2305, 11)}, RoundedCorner{position=BottomRight, radius=11, center=Point(2305, 1069)}, RoundedCorner{position=BottomLeft, radius=11, center=Point(11, 1069)}]}  mRoundedCornerFrame=Rect(0, 0 - 0, 0), mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=Rect(2200, 0 - 2316, 79) rotation=1}, mDisplayShape=DisplayShape{type=2, displayWidth=1080, displayHeight=2316, physicalPixelDisplaySizeRatio=0.75, rotation=1, offsetX=0, offsetY=0, scale=1.0}, mSources= { InsetsSource: {7 mType=displayCutout mFrame=[0,0][94,1080] mAttachedInsets=null mVisible=true mFlags= mSideHint=LEFT}, InsetsSource: {7bc0001 mType=navigationBars mFrame=[0,1041][2316,1080] mAttachedInsets=null mVisible=true mFlags=SUPPRESS_SCRIM mSideHint=BOTTOM}, InsetsSource: {7bc0004 mType=systemGestures mFrame=[0,0][172,1080] mAttachedInsets=null mVisible=true mFlags= mSideHint=LEFT}, InsetsSource: {7bc0005 mType=mandatorySystemGestures mFrame=[0,996][2316,1080] mAttachedInsets=null mVisible=true mFlags= mSideHint=BOTTOM}, InsetsSource: {7bc0006 mType=tappableElement mFrame=[0,0][0,0] mAttachedInsets=null mVisible=true mFlags= mSideHint=NONE}, InsetsSource: {7bc0024 mType=systemGestures mFrame=[2238,0][2316,1080] mAttachedInsets=null mVisible=true mFlags= mSideHint=RIGHT}, InsetsSource: {199b0000 mType=statusBars mFrame=[0,0][2316,79] mAttachedInsets=null mVisible=false mFlags= mSideHint=TOP}, InsetsSource: {199b0005 mType=mandatorySystemGestures mFrame=[0,0][2316,79] mAttachedInsets=null mVisible=true mFlags= mSideHint=TOP}, InsetsSource: {199b0006 mType=tappableElement mFrame=[0,0][2316,79] mAttachedInsets=null mVisible=true mFlags= mSideHint=TOP} } }], requestedLocation = null, userChange = null, windowingLayerChange = null, fullscreenRequestChange = null, flags = 0, debugId = 10167 }
+10-30 20:53:50.222  3014  3309 V WindowManager: Sent Transition (#10167) createdAt=10-30 20:53:50.193 via request=TransitionRequestInfo { type = CHANGE, triggerTask = null, pipChange = null, remoteTransitionInfo = null, displayChanges = [DisplayChange { displayId = 0, startAbsBounds = null, endAbsBounds = null, endDisplayAreaInfo = null, startRotation = 0, endRotation = 1, physicalDisplayChanged = false, disconnectReparentDisplay = -1, endInsetsState = InsetsState: {mDisplayFrame=Rect(0, 0 - 2316, 1080), mDisplayCutout=DisplayCutout{insets=Rect(94, 0 - 0, 0) waterfall=Insets{left=0, top=0, right=0, bottom=0} boundingRect={Bounds=[Rect(0, 513 - 94, 567), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0)]} cutoutPathParserInfo={CutoutPathParserInfo{displayWidth=1080 displayHeight=2316 physicalDisplayWidth=1080 physicalDisplayHeight=2316 density={2.8125} cutoutSpec={M 0,0 H -9.6 V 33.33333333333333 H 9.6 V 0 H 0 Z @dp} rotation={1} scale={1.0} physicalPixelDisplaySizeRatio={1.0}}} sideOverrides={}}, mRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=11, center=Point(11, 11)}, RoundedCorner{position=TopRight, radius=11, center=Point(2305, 11)}, RoundedCorner{position=BottomRight, radius=11, center=Point(2305, 1069)}, RoundedCorner{position=BottomLeft, radius=11, center=Point(11, 1069)}]}  mRoundedCornerFrame=Rect(0, 0 - 0, 0), mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=Rect(2200, 0 - 2316, 79) rotation=1}, mDisplayShape=DisplayShape{type=2, displayWidth=1080, displayHeight=2316, physicalPixelDisplaySizeRatio=0.75, rotation=1, offsetX=0, offsetY=0, scale=1.0}, mSources= { InsetsSource: {7 mType=displayCutout mFrame=[0,0][94,1080] mAttachedInsets=null mVisible=true mFlags= mSideHint=LEFT}, InsetsSource: {7bc0001 mType=navigationBars mFrame=[0,1041][2316,1080] mAttachedInsets=null mVisible=true mFlags=SUPPRESS_SCRIM mSideHint=BOTTOM}, InsetsSource: {7bc0004 mType=systemGestures mFrame=[0,0][172,1080] mAttachedInsets=null mVisible=true mFlags= mSideHint=LEFT}, InsetsSource: {7bc0005 mType=mandatorySystemGestures mFrame=[0,996][2316,1080] mAttachedInsets=null mVisible=true mFlags= mSideHint=BOTTOM}, InsetsSource: {7bc0006 mType=tappableElement mFrame=[0,0][0,0] mAttachedInsets=null mVisible=true mFlags= mSideHint=NONE}, InsetsSource: {7bc0024 mType=systemGestures mFrame=[2238,0][2316,1080] mAttachedInsets=null mVisible=true mFlags= mSideHint=RIGHT}, InsetsSource: {199b0000 mType=statusBars mFrame=[0,0][2316,79] mAttachedInsets=null mVisible=false mFlags= mSideHint=TOP}, InsetsSource: {199b0005 mType=mandatorySystemGestures mFrame=[0,0][2316,79] mAttachedInsets=null mVisible=true mFlags= mSideHint=TOP}, InsetsSource: {199b0006 mType=tappableElement mFrame=[0,0][2316,79] mAttachedInsets=null mVisible=true mFlags= mSideHint=TOP} } }], requestedLocation = null, userChange = null, windowingLayerChange = null, fullscreenRequestChange = null, flags = 0, debugId = 10167 }
+10-30 20:53:50.260  8313  8848 I VRI[CocktailBarService]@a42cf41: Received ready transaction from native, debugName=syncBuffer_VRI[CocktailBarService]@a42cf41#17
+10-30 20:53:50.394  5058  5117 V WindowManagerShell: Transition requested (#10168): android.os.BinderProxy@56a08cb TransitionRequestInfo { type = CLOSE, triggerTask = TaskInfo{userId=0 taskId=1425 effectiveUid=10380 displayId=0 isRunning=true baseIntent=Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10200000 cmp=org.nx2a.nierautomata/android.app.NativeActivity } baseActivity=ComponentInfo{org.nx2a.nierautomata/android.app.NativeActivity} topActivity=ComponentInfo{org.nx2a.nierautomata/android.app.NativeActivity} origActivity=null realActivity=ComponentInfo{org.nx2a.nierautomata/android.app.NativeActivity} realActivityIsAppLockEnabled=false numActivities=1 lastActiveTime=191192040 supportsMultiWindow=true supportsMultiWindowWithoutConstraints=true resizeMode=1 isResizeable=true minWidth=-1 minHeight=-1 maxWidth=-1 maxHeight=-1 defaultMinSize=220 desktopDefaultMinSize=304 token=WCT{android.os.BinderProxy@602f98d} topActivityType=1 pictureInPictureParams=null shouldDockBigOverlays=false launchIntoPipHostTaskId=-1 lastParentTaskIdBeforePip=-1 displayCutoutSafeInsets=Rect(94, 0 - 0, 0) topActivityInfo=ActivityInfo{4d5c8a8 android.app.NativeActivity} launchCookies=[android.os.BinderProxy@a6d4353] positionInParent=Point(0, 0) parentTaskId=-1 isFocused=true isInteractive=true isVisible=true isVisibleRequested=true isTopActivityNoDisplay=false isSleeping=false locusId=null displayAreaFeatureId=1 isTopActivityTransparent=false isActivityStackTransparent=false lastNonFullscreenBounds=Rect(81, 606 - 999, 1764) leafTaskBoundsFromOptions= false capturedLink=null capturedLinkTimestamp=0 requestedVisibleTypes=503 topActivityRequestOpenInBrowserEducationTimestamp=0 appCompatTaskInfo=AppCompatTaskInfo { topActivityInSizeCompat=false isLeafTask= true eligibleForLetterboxEducation= false isLetterboxEducationEnabled= false isLetterboxDoubleTapEnabled= false eligibleForUserAspectRatioButton= false topActivityBoundsLetterboxed= false isFromLetterboxDoubleTap= false topActivityLetterboxVerticalPosition= -1 topActivityLetterboxHorizontalPosition= -1 topActivityLetterboxWidth=-1 topActivityLetterboxHeight=-1 topActivityAppBounds=Rect(0, 0 - 2316, 1080) isUserFullscreenOverrideEnabled=false isSystemFullscreenOverrideEnabled=false hasMinAspectRatioOverride=false topActivityLetterboxBounds=null topActivityBounds=nullshowMultiTaskingAppCompatUI=true topActivityInDisplayCompat=false showForceRotationButton=false forceRotationButtonState=0 orientationPolicyToRestore=0showAspectRatioButton=falseaspectRatioToRestore=0letterboxStateBeforeAspectRatioRestore=0 singleTapFromLetterbox=false topNonResizableActivityAspectRatio=-1.0} topActivityMainWindowFrame=null originallySupportedMultiWindow=true hasWallpaper=false rootAffinity=10380:org.nx2a.nierautomata isTopTaskInStage=false LaunchedFromMultistarCoverLauncherTask=false isAllowedSeamlessRotation=false isTopTransparentActivity=false isAliasManaged=false hasConfigChanged=false isAiKeyRemoveAppTask=false isActivityEmbeddingSplitsEnabled=falseisPackageNightModeActive=true isKeepScreenOn=true safeCutoutInsets=null isAppBubble=false lastAttachedDisplayId=-1}, pipChange = null, remoteTransitionInfo = null, displayChanges = null, requestedLocation = null, userChange = null, windowingLayerChange = null, fullscreenRequestChange = null, flags = 0, debugId = 10168 }
+10-30 20:53:50.445  3014  3309 V WindowManager: Sent Transition (#10168) createdAt=10-30 20:53:50.393 via request=TransitionRequestInfo { type = CLOSE, triggerTask = TaskInfo{userId=0 taskId=1425 effectiveUid=10380 displayId=0 isRunning=true baseIntent=Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10200000 cmp=org.nx2a.nierautomata/android.app.NativeActivity } baseActivity=ComponentInfo{org.nx2a.nierautomata/android.app.NativeActivity} topActivity=ComponentInfo{org.nx2a.nierautomata/android.app.NativeActivity} origActivity=null realActivity=ComponentInfo{org.nx2a.nierautomata/android.app.NativeActivity} realActivityIsAppLockEnabled=false numActivities=1 lastActiveTime=191192040 supportsMultiWindow=true supportsMultiWindowWithoutConstraints=true resizeMode=1 isResizeable=true minWidth=-1 minHeight=-1 maxWidth=-1 maxHeight=-1 defaultMinSize=220 desktopDefaultMinSize=304 token=WCT{RemoteToken{7327e4f Task{ce1c6f #1425 type=standard A=10380:org.nx2a.nierautomata}}} topActivityType=1 pictureInPictureParams=null shouldDockBigOverlays=false launchIntoPipHostTaskId=-1 lastParentTaskIdBeforePip=-1 displayCutoutSafeInsets=Rect(94, 0 - 0, 0) topActivityInfo=ActivityInfo{31609dc android.app.NativeActivity} launchCookies=[android.os.BinderProxy@38b6ae5] positionInParent=Point(0, 0) parentTaskId=-1 isFocused=true isInteractive=true isVisible=true isVisibleRequested=true isTopActivityNoDisplay=false isSleeping=false locusId=null displayAreaFeatureId=1 isTopActivityTransparent=false isActivityStackTransparent=false lastNonFullscreenBounds=Rect(81, 606 - 999, 1764) leafTaskBoundsFromOptions= false capturedLink=null capturedLinkTimestamp=0 requestedVisibleTypes=503 topActivityRequestOpenInBrowserEducationTimestamp=0 appCompatTaskInfo=AppCompatTaskInfo { topActivityInSizeCompat=false isLeafTask= true eligibleForLetterboxEducation= false isLetterboxEducationEnabled= false isLetterboxDoubleTapEnabled= false eligibleForUserAspectRatioButton= false topActivityBoundsLetterboxed= false isFromLetterboxDoubleTap= false topActivityLetterboxVerticalPosition= -1 topActivityLetterboxHorizontalPosition= -1 topActivityLetterboxWidth=-1 topActivityLetterboxHeight=-1 topActivityAppBounds=Rect(0, 0 - 2316, 1080) isUserFullscreenOverrideEnabled=false isSystemFullscreenOverrideEnabled=false hasMinAspectRatioOverride=false topActivityLetterboxBounds=null topActivityBounds=nullshowMultiTaskingAppCompatUI=true topActivityInDisplayCompat=false showForceRotationButton=false forceRotationButtonState=0 orientationPolicyToRestore=0showAspectRatioButton=falseaspectRatioToRestore=0letterboxStateBeforeAspectRatioRestore=0 singleTapFromLetterbox=false topNonResizableActivityAspectRatio=-1.0} topActivityMainWindowFrame=null originallySupportedMultiWindow=true hasWallpaper=false rootAffinity=10380:org.nx2a.nierautomata isTopTaskInStage=false LaunchedFromMultistarCoverLauncherTask=false isAllowedSeamlessRotation=false isTopTransparentActivity=false isAliasManaged=false hasConfigChanged=false isAiKeyRemoveAppTask=false isActivityEmbeddingSplitsEnabled=falseisPackageNightModeActive=true isKeepScreenOn=true safeCutoutInsets=null isAppBubble=false lastAttachedDisplayId=-1}, pipChange = null, remoteTransitionInfo = null, displayChanges = null, requestedLocation = null, userChange = null, windowingLayerChange = null, fullscreenRequestChange = null, flags = 0, debugId = 10168 }
+10-30 20:53:50.448  5058  5117 V WindowManagerShell:  Checking filter Pair{{types=[] flags=0x0 notFlags=0x100 checks=[{atype=home independent=true modes=[OPEN,TO_FRONT] flags=NONE mustBeTask=false order=ANY topActivity=ComponentInfo{com.sec.android.app.launcher/com.sec.android.app.launcher.Launcher} launchCookie=null windowingMode=undefined isCrossDisplayMove=false},{atype=recents independent=true modes=[CLOSE,TO_BACK] flags=NONE mustBeTask=false order=ANY topActivity=null launchCookie=null windowingMode=undefined isCrossDisplayMove=false}]} RemoteTransition { remoteTransition = android.window.IRemoteTransition$Stub$Proxy@1e7af53, appThread = android.app.IApplicationThread$Stub$Proxy@4432090, debugName = QuickstepLaunchHomeFromRecents, filter = {types=[] flags=0x0 notFlags=0x100 checks=[{atype=home independent=true modes=[OPEN,TO_FRONT] flags=NONE mustBeTask=false order=ANY topActivity=ComponentInfo{com.sec.android.app.launcher/com.sec.android.app.launcher.Launcher} launchCookie=null windowingMode=undefined isCrossDisplayMove=false},{atype=recents independent=true modes=[CLOSE,TO_BACK] flags=NONE mustBeTask=false order=ANY topActivity=null launchCookie=null windowingMode=undefined isCrossDisplayMove=false}]} }}
+10-30 20:53:50.448  5058  5117 V WindowManagerShell:  Checking filter Pair{{types=[] flags=0x0 notFlags=0x100 checks=[{atype=home independent=true modes=[OPEN,TO_FRONT] flags=NONE mustBeTask=false order=ANY topActivity=ComponentInfo{com.sec.android.app.launcher/com.sec.android.app.launcher.Launcher} launchCookie=null windowingMode=undefined isCrossDisplayMove=false},{atype=standard independent=true modes=[CLOSE,TO_BACK] flags=NONE mustBeTask=false order=ANY topActivity=null launchCookie=null windowingMode=undefined isCrossDisplayMove=false}]} RemoteTransition { remoteTransition = android.window.IRemoteTransition$Stub$Proxy@cb3e9e, appThread = android.app.IApplicationThread$Stub$Proxy@fd1fd7f, debugName = QuickstepLaunchHome, filter = {types=[] flags=0x0 notFlags=0x100 checks=[{atype=home independent=true modes=[OPEN,TO_FRONT] flags=NONE mustBeTask=false order=ANY topActivity=ComponentInfo{com.sec.android.app.launcher/com.sec.android.app.launcher.Launcher} launchCookie=null windowingMode=undefined isCrossDisplayMove=false},{atype=standard independent=true modes=[CLOSE,TO_BACK] flags=NONE mustBeTask=false order=ANY topActivity=null launchCookie=null windowingMode=undefined isCrossDisplayMove=false}]} }}
+10-30 20:53:50.989  5058  5117 V WindowManagerShell: Transition requested (#10169): android.os.BinderProxy@b2ca9a2 TransitionRequestInfo { type = CHANGE, triggerTask = null, pipChange = null, remoteTransitionInfo = null, displayChanges = [DisplayChange { displayId = 0, startAbsBounds = null, endAbsBounds = null, endDisplayAreaInfo = null, startRotation = 1, endRotation = 0, physicalDisplayChanged = false, disconnectReparentDisplay = -1, endInsetsState = InsetsState: {mDisplayFrame=Rect(0, 0 - 1080, 2316), mDisplayCutout=DisplayCutout{insets=Rect(0, 94 - 0, 0) waterfall=Insets{left=0, top=0, right=0, bottom=0} boundingRect={Bounds=[Rect(0, 0 - 0, 0), Rect(513, 0 - 567, 94), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0)]} cutoutPathParserInfo={CutoutPathParserInfo{displayWidth=1080 displayHeight=2316 physicalDisplayWidth=1080 physicalDisplayHeight=2316 density={2.8125} cutoutSpec={M 0,0 H -9.6 V 33.33333333333333 H 9.6 V 0 H 0 Z @dp} rotation={0} scale={1.0} physicalPixelDisplaySizeRatio={1.0}}} sideOverrides={}}, mRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=11, center=Point(11, 11)}, RoundedCorner{position=TopRight, radius=11, center=Point(1069, 11)}, RoundedCorner{position=BottomRight, radius=11, center=Point(1069, 2305)}, RoundedCorner{position=BottomLeft, radius=11, center=Point(11, 2305)}]}  mRoundedCornerFrame=Rect(0, 0 - 0, 0), mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=Rect(964, 0 - 1080, 93) rotation=0}, mDisplayShape=DisplayShape{type=2, displayWidth=1080, displayHeight=2316, physicalPixelDisplaySizeRatio=0.75, rotation=0, offsetX=0, offsetY=0, scale=1.0}, mSources= { InsetsSource: {27 mType=displayCutout mFrame=[0,0][1080,94] mAttachedInsets=null mVisible=true mFlags= mSideHint=TOP}, InsetsSource: {7bc0001 mType=navigationBars mFrame=[0,2277][1080,2316] mAttachedInsets=null mVisible=true mFlags=SUPPRESS_SCRIM mSideHint=BOTTOM}, InsetsSource: {7bc0004 mType=systemGestures mFrame=[0,0][78,2316] mAttachedInsets=null mVisible=true mFlags= mSideHint=LEFT}, InsetsSource: {7bc0005 mType=mandatorySystemGestures mFrame=[0,2232][1080,2316] mAttachedInsets=null mVisible=true mFlags= mSideHint=BOTTOM}, InsetsSource: {7bc0006 mType=tappableElement mFrame=[0,0][0,0] mAttachedInsets=null mVisible=true mFlags= mSideHint=NONE}, InsetsSource: {7bc0024 mType=systemGestures mFrame=[1002,0][1080,2316] mAttachedInsets=null mVisible=true mFlags= mSideHint=RIGHT}, InsetsSource: {199b0000 mType=statusBars mFrame=[0,0][1080,93] mAttachedInsets=null mVisible=true mFlags= mSideHint=TOP}, InsetsSource: {199b0005 mType=mandatorySystemGestures mFrame=[0,0][1080,126] mAttachedInsets=null mVisible=true mFlags= mSideHint=TOP}, InsetsSource: {199b0006 mType=tappableElement mFrame=[0,0][1080,93] mAttachedInsets=null mVisible=true mFlags= mSideHint=TOP} } }], requestedLocation = null, userChange = null, windowingLayerChange = null, fullscreenRequestChange = null, flags = 0, debugId = 10169 }
+10-30 20:53:51.011  3014  3309 V WindowManager: Sent Transition (#10169) createdAt=10-30 20:53:50.987 via request=TransitionRequestInfo { type = CHANGE, triggerTask = null, pipChange = null, remoteTransitionInfo = null, displayChanges = [DisplayChange { displayId = 0, startAbsBounds = null, endAbsBounds = null, endDisplayAreaInfo = null, startRotation = 1, endRotation = 0, physicalDisplayChanged = false, disconnectReparentDisplay = -1, endInsetsState = InsetsState: {mDisplayFrame=Rect(0, 0 - 1080, 2316), mDisplayCutout=DisplayCutout{insets=Rect(0, 94 - 0, 0) waterfall=Insets{left=0, top=0, right=0, bottom=0} boundingRect={Bounds=[Rect(0, 0 - 0, 0), Rect(513, 0 - 567, 94), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0)]} cutoutPathParserInfo={CutoutPathParserInfo{displayWidth=1080 displayHeight=2316 physicalDisplayWidth=1080 physicalDisplayHeight=2316 density={2.8125} cutoutSpec={M 0,0 H -9.6 V 33.33333333333333 H 9.6 V 0 H 0 Z @dp} rotation={0} scale={1.0} physicalPixelDisplaySizeRatio={1.0}}} sideOverrides={}}, mRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=11, center=Point(11, 11)}, RoundedCorner{position=TopRight, radius=11, center=Point(1069, 11)}, RoundedCorner{position=BottomRight, radius=11, center=Point(1069, 2305)}, RoundedCorner{position=BottomLeft, radius=11, center=Point(11, 2305)}]}  mRoundedCornerFrame=Rect(0, 0 - 0, 0), mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=Rect(964, 0 - 1080, 93) rotation=0}, mDisplayShape=DisplayShape{type=2, displayWidth=1080, displayHeight=2316, physicalPixelDisplaySizeRatio=0.75, rotation=0, offsetX=0, offsetY=0, scale=1.0}, mSources= { InsetsSource: {27 mType=displayCutout mFrame=[0,0][1080,94] mAttachedInsets=null mVisible=true mFlags= mSideHint=TOP}, InsetsSource: {7bc0001 mType=navigationBars mFrame=[0,2277][1080,2316] mAttachedInsets=null mVisible=true mFlags=SUPPRESS_SCRIM mSideHint=BOTTOM}, InsetsSource: {7bc0004 mType=systemGestures mFrame=[0,0][78,2316] mAttachedInsets=null mVisible=true mFlags= mSideHint=LEFT}, InsetsSource: {7bc0005 mType=mandatorySystemGestures mFrame=[0,2232][1080,2316] mAttachedInsets=null mVisible=true mFlags= mSideHint=BOTTOM}, InsetsSource: {7bc0006 mType=tappableElement mFrame=[0,0][0,0] mAttachedInsets=null mVisible=true mFlags= mSideHint=NONE}, InsetsSource: {7bc0024 mType=systemGestures mFrame=[1002,0][1080,2316] mAttachedInsets=null mVisible=true mFlags= mSideHint=RIGHT}, InsetsSource: {199b0000 mType=statusBars mFrame=[0,0][1080,93] mAttachedInsets=null mVisible=true mFlags= mSideHint=TOP}, InsetsSource: {199b0005 mType=mandatorySystemGestures mFrame=[0,0][1080,126] mAttachedInsets=null mVisible=true mFlags= mSideHint=TOP}, InsetsSource: {199b0006 mType=tappableElement mFrame=[0,0][1080,93] mAttachedInsets=null mVisible=true mFlags= mSideHint=TOP} } }], requestedLocation = null, userChange = null, windowingLayerChange = null, fullscreenRequestChange = null, flags = 0, debugId = 10169 }
+10-30 20:53:51.041  8313  8848 I VRI[CocktailBarService]@a42cf41: Received ready transaction from native, debugName=syncBuffer_VRI[CocktailBarService]@a42cf41#22
+10-30 20:53:51.046  8313  8848 I VRI[LauncherActivity]@7a99ead: Received ready transaction from native, debugName=syncBuffer_VRI[LauncherActivity]@7a99ead#25
+10-30 20:53:54.759 21123 21123 I adbd    : adbd service requested 'shell,v2,TERM=xterm-256color,raw:logcat -d | grep -iE 'DEBUG|fatal signal|backtrace|vulkan|freedreno' | tail -n 40'
+10-30 20:53:54.844  1860 11518 I sensors-hal: handle_sns_client_event:190, auto_rotation_debug_2 mode,255, type,1,0 acc,-0.062,-0.206,9.782, ar,0, ver,15, pedo,1,e,1,i,3
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> cd "C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game"
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb shell cmd package uninstall -k org.nx2a.nierautomata
+Success
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb install -r -d ".\NieRAutomata.apk"
+Performing Streamed Install
+adb.exe: failed to install .\NieRAutomata.apk: Failure [INSTALL_FAILED_UPDATE_INCOMPATIBLE: Existing package org.nx2a.nierautomata signatures do not match newer version; ignoring!]
+
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> Compress-Archive -Path ".\meta", ".\vulkan.ad07xx.so" -DestinationPath ".\turnip_v26.zip" -Force
+Compress-Archive : La ruta de acceso ".\meta" no existe o no es una ruta de acceso válida del
+sistema de archivos.
+En línea: 1 Carácter: 1
++ Compress-Archive -Path ".\meta", ".\vulkan.ad07xx.so" -DestinationPat ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidArgument: (.\meta:String) [Compress-Archive], InvalidOperatio
+   nException
+    + FullyQualifiedErrorId : ArchiveCmdletPathNotFound,Compress-Archive
+
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> cd "C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game"
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> Copy-Item "$env:USERPROFILE\Downloads\Turnip_v26.0.0_R8\vulkan.ad07xx.so" ".\" -Force
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb shell cmd package uninstall -k org.nx2a.nierautomata
+Success
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb install -r -d ".\NieRAutomata.apk"
+Performing Streamed Install
+adb.exe: failed to install .\NieRAutomata.apk: Failure [INSTALL_FAILED_UPDATE_INCOMPATIBLE: Existing package org.nx2a.nierautomata signatures do not match newer version; ignoring!]
+
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb shell cmd package uninstall -k org.nx2a.nierautomata
+Success
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> cd "C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game"
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb shell mv /sdcard/Android/data/org.nx2a.nierautomata /sdcard/Android/data/org.nx2a.nierautomata_backup
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb uninstall org.nx2a.nierautomata
+Success
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb install -r -d ".\NieRAutomata.apk"
+Performing Streamed Install
+Success
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb shell mv /sdcard/Android/data/org.nx2a.nierautomata_backup /sdcard/Android/data/org.nx2a.nierautomata
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> Compress-Archive -Path ".\vulkan.ad07xx.so" -DestinationPath ".\turnip_v26.zip" -Force
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb shell mkdir -p /sdcard/Android/data/org.nx2a.nierautomata/files/drivers/
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb shell mkdir -p /sdcard/Android/data/org.nx2a.nierautomata/files/dm/
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb push turnip_v26.zip /sdcard/Android/data/org.nx2a.nierautomata/files/drivers/
+turnip_v26.zip: 1 file pushed, 0 skipped. 32.5 MB/s (3478386 bytes in 0.102s)
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb shell "echo 'DM_VK_DRIVER=turnip_v26.zip' > /sdcard/Android/data/org.nx2a.nierautomata/files/dm/env"
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb shell rm -f /sdcard/Android/data/org.nx2a.nierautomata/files/log.txt
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb logcat -c
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb logcat -c
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game> adb shell "logcat -d | grep -iE 'nx2a|fatal|crash|vulkan|freedreno|androidruntime' | tail -n 30"
+10-30 21:01:25.952  1965  1965 I SurfaceFlinger: [LayerHierarchy{RequestedLayerState{f9a0391 org.nx2a.nierautomata/android.app.NativeActivity#56206} no children}] reparent to OffscreenRoot
+10-30 21:01:25.952  1965  1965 I SurfaceFlinger: [LayerHierarchy{RequestedLayerState{f9a0391 org.nx2a.nierautomata/android.app.NativeActivity#56206} no children}] RelativeParent to null
+10-30 21:01:25.952  1965  1965 I SurfaceFlinger: [LayerHierarchy{RequestedLayerState{15c03b8 Splash Screen org.nx2a.nierautomata#56199 z=30000} 1 children}] reparent to OffscreenRoot
+10-30 21:01:25.952  1965  1965 I SurfaceFlinger: [LayerHierarchy{RequestedLayerState{15c03b8 Splash Screen org.nx2a.nierautomata#56199 z=30000} 1 children}] RelativeParent to null
+10-30 21:01:25.952  1965  1965 I SurfaceFlinger: [LayerHierarchy{RequestedLayerState{VRI-Splash Screen org.nx2a.nierautomata$_5058#56200} no children}] reparent to OffscreenRoot
+10-30 21:01:25.952  1965  1965 I SurfaceFlinger: [LayerHierarchy{RequestedLayerState{VRI-Splash Screen org.nx2a.nierautomata$_5058#56200} no children}] RelativeParent to null
+10-30 21:01:25.952  1965  1965 I SurfaceFlinger: id=56192 Removed ActivityRecord{245644925 u0 org.nx2a.nierautomata/android.app.NativeActivity t1429}#56192 (143)
+10-30 21:01:25.952  1965  1965 I SurfaceFlinger: id=56206 Removed f9a0391 org.nx2a.nierautomata/android.app.NativeActivity#56206 (143)
+10-30 21:01:25.952  1965  1965 I SurfaceFlinger: id=56207 Removed VRI-org.nx2a.nierautomata/android.app.NativeActivity$_13840#56207 (143)
+10-30 21:01:25.952  1965  1965 I SurfaceFlinger: id=56199 Removed 15c03b8 Splash Screen org.nx2a.nierautomata#56199 (143)
+10-30 21:01:25.952  1965  1965 I SurfaceFlinger: id=56200 Removed VRI-Splash Screen org.nx2a.nierautomata$_5058#56200 (143)
+10-30 21:01:25.968  1965  1965 I SurfaceFlinger: destroyed VRI-Splash Screen org.nx2a.nierautomata$_5058#56200 form LifecycleManager
+10-30 21:01:25.968  1965  1965 I SurfaceFlinger: destroyed 15c03b8 Splash Screen org.nx2a.nierautomata#56199 form LifecycleManager
+10-30 21:01:25.968  1965  1965 I SurfaceFlinger: destroyed 6855227 ActivityRecordInputSink org.nx2a.nierautomata/android.app.NativeActivity#56198 form LifecycleManager
+10-30 21:01:25.968  1965  1965 I SurfaceFlinger: destroyed f9a0391 org.nx2a.nierautomata/android.app.NativeActivity#56206 form LifecycleManager
+10-30 21:01:25.968  1965  1965 I SurfaceFlinger: destroyed ActivityRecord{245644925 u0 org.nx2a.nierautomata/android.app.NativeActivity t1429}#56192 form LifecycleManager
+10-30 21:01:25.968  1965  1965 I SurfaceFlinger: destroyed VRI-org.nx2a.nierautomata/android.app.NativeActivity$_13840#56207 form LifecycleManager
+10-30 21:01:25.969  1965  1965 I SurfaceFlinger: id=56200 onLayerDestroyed from LayerHierarchyBuilder(RequestedLayerState{VRI-Splash Screen org.nx2a.nierautomata$_5058#56200 !handle})
+10-30 21:01:25.969  1965  1965 I SurfaceFlinger: id=56199 onLayerDestroyed from LayerHierarchyBuilder(RequestedLayerState{15c03b8 Splash Screen org.nx2a.nierautomata#56199 !handle z=30000})
+10-30 21:01:25.969  1965  1965 I SurfaceFlinger: id=56198 onLayerDestroyed from LayerHierarchyBuilder(RequestedLayerState{6855227 ActivityRecordInputSink org.nx2a.nierautomata/android.app.NativeActivity#56198 !handle z=-2147483648})
+10-30 21:01:25.969  1965  1965 I SurfaceFlinger: id=56206 onLayerDestroyed from LayerHierarchyBuilder(RequestedLayerState{f9a0391 org.nx2a.nierautomata/android.app.NativeActivity#56206 !handle})
+10-30 21:01:25.969  1965  1965 I SurfaceFlinger: id=56192 onLayerDestroyed from LayerHierarchyBuilder(RequestedLayerState{ActivityRecord{245644925 u0 org.nx2a.nierautomata/android.app.NativeActivity t1429}#56192 !handle})
+10-30 21:01:25.969  1965  1965 I SurfaceFlinger: id=56207 onLayerDestroyed from LayerHierarchyBuilder(RequestedLayerState{VRI-org.nx2a.nierautomata/android.app.NativeActivity$_13840#56207 !handle})
+10-30 21:01:25.969  1965  1965 I SurfaceFlinger: id=56200 Destroyed VRI-Splash Screen org.nx2a.nierautomata$_5058#56200
+10-30 21:01:25.969  1965  1965 I SurfaceFlinger: id=56199 Destroyed 15c03b8 Splash Screen org.nx2a.nierautomata#56199
+10-30 21:01:25.969  1965  1965 I SurfaceFlinger: id=56198 Destroyed 6855227 ActivityRecordInputSink org.nx2a.nierautomata/android.app.NativeActivity#56198
+10-30 21:01:25.969  1965  1965 I SurfaceFlinger: id=56206 Destroyed f9a0391 org.nx2a.nierautomata/android.app.NativeActivity#56206
+10-30 21:01:25.969  1965  1965 I SurfaceFlinger: id=56192 Destroyed ActivityRecord{245644925 u0 org.nx2a.nierautomata/android.app.NativeActivity t1429}#56192
+10-30 21:01:25.969  1965  1965 I SurfaceFlinger: id=56207 Destroyed VRI-org.nx2a.nierautomata/android.app.NativeActivity$_13840#56207
+10-30 21:01:27.795 21123 21123 I adbd    : adbd service requested 'shell,v2,TERM=xterm-256color,raw:logcat -d | grep -iE 'nx2a|fatal|crash|vulkan|freedreno|androidruntime' | tail -n 30'
+PS C:\Users\jjose\OneDrive\Escritorio\Super-Mario-3D-World-Bowsers-Fury-Base-Game>

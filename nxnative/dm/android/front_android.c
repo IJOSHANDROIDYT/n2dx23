@@ -672,10 +672,27 @@ __attribute__((visibility("default"))) void ANativeActivity_onCreate(ANativeActi
     act->callbacks->onPause = on_pause; act->callbacks->onResume = on_resume; act->callbacks->onWindowFocusChanged = on_window_focus; act->callbacks->onDestroy = on_destroy;
     ANativeActivity_setWindowFlags(act, AWINDOW_FLAG_KEEP_SCREEN_ON | AWINDOW_FLAG_FULLSCREEN, 0);
     static int started; if (started++) return;   // a second onCreate (configuration change) keeps the running game
-    snprintf(g_root, sizeof g_root, "%s", act->externalDataPath ? act->externalDataPath : act->internalDataPath);
+    if (act->externalDataPath) {
+        snprintf(g_root, sizeof g_root, "%s", act->externalDataPath);
+    } else {
+        // If /sdcard/Android/data/<pkg> was moved via adb shell before first launch, getExternalFilesDir() can return NULL once.
+        // Extract <pkg> from internalDataPath (/data/user/0/<pkg>/files) and check /storage/emulated/0/Android/data/<pkg>/files.
+        const char *idp = act->internalDataPath ? act->internalDataPath : "";
+        const char *slash_files = strstr(idp, "/files");
+        const char *pkg = slash_files ? slash_files : NULL;
+        while (pkg && pkg > idp && pkg[-1] != '/') pkg--;
+        char ext_try[512] = {0};
+        if (pkg && slash_files && slash_files > pkg) {
+            snprintf(ext_try, sizeof ext_try, "/storage/emulated/0/Android/data/%.*s/files", (int)(slash_files - pkg), pkg);
+            mkdir(ext_try, 0770);
+        }
+        if (ext_try[0] && access(ext_try, R_OK) == 0) snprintf(g_root, sizeof g_root, "%s", ext_try);
+        else snprintf(g_root, sizeof g_root, "%s", idp);
+    }
+    __android_log_print(ANDROID_LOG_INFO, "dmhost", "ANativeActivity_onCreate: g_root=%s internal=%s", g_root, act->internalDataPath ? act->internalDataPath : "(null)");
     char p[700];
     snprintf(p, sizeof p, "%s/log.txt", g_root); char prev[720]; snprintf(prev, sizeof prev, "%s/log.prev.txt", g_root); rename(p, prev);
-    if (!freopen(p, "w", stderr)) __android_log_print(ANDROID_LOG_ERROR, "dmhost", "cannot write %s", p);
+    if (!freopen(p, "w", stderr)) __android_log_print(ANDROID_LOG_ERROR, "dmhost", "cannot write %s (errno=%d)", p, errno);
     setvbuf(stderr, NULL, _IOLBF, 0);
     setenv("DM_ROOT", g_root, 1);
     snprintf(p, sizeof p, "%s/RomFS", g_root); setenv("DM_ROMFS", p, 0);

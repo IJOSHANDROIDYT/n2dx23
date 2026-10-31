@@ -16,6 +16,7 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -50,11 +51,46 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL vk_validation_msg(VkDebugUtilsMessageSever
     return VK_FALSE;
 }
 
+static void *load_custom_vk_driver(const char *drv_name) {
+    if (!drv_name || !drv_name[0]) return NULL;
+    void *h = dlopen(drv_name, RTLD_NOW | RTLD_LOCAL);
+    if (h) { VKLOG("loaded custom Vulkan driver from APK libs: %s", drv_name); return h; }
+    const char *root = getenv("DM_ROOT"), *temp = getenv("DM_TEMP");
+    if (!root || !temp) return NULL;
+    char src[1024], dst[1024];
+    if (drv_name[0] == '/') snprintf(src, sizeof src, "%s", drv_name);
+    else snprintf(src, sizeof src, "%s/drivers/%s", root, drv_name);
+    FILE *in = fopen(src, "rb");
+    if (!in) { VKLOG("[RED] custom driver not found at %s", src); return NULL; }
+    const char *base = strrchr(drv_name, '/'); base = base ? base + 1 : drv_name;
+    snprintf(dst, sizeof dst, "%s/%s", temp, base);
+    unlink(dst);
+    FILE *out = fopen(dst, "wb");
+    if (!out) { fclose(in); VKLOG("[RED] cannot copy custom driver to %s: %s", dst, strerror(errno)); return NULL; }
+    char buf[65536]; size_t r;
+    while ((r = fread(buf, 1, sizeof buf, in)) > 0) fwrite(buf, 1, r, out);
+    fclose(in); fclose(out);
+    chmod(dst, 0500);
+    h = dlopen(dst, RTLD_NOW | RTLD_LOCAL);
+    if (!h) { VKLOG("[RED] dlopen(%s) failed: %s", dst, dlerror()); return NULL; }
+    VKLOG("loaded custom Vulkan driver from %s", dst);
+    return h;
+}
+
 void vk_init(void) {
     static int done; if (done) return; done = 1;
-    void *lib = dlopen("libvulkan.so", RTLD_NOW | RTLD_LOCAL);
-    if (!lib) die("[vk] libvulkan.so: %s", dlerror());
-    p_vkGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)dlsym(lib, "vkGetInstanceProcAddr");
+    const char *custom_drv = getenv("DM_VK_DRIVER");
+    void *lib = load_custom_vk_driver(custom_drv);
+    if (lib) {
+        p_vkGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)dlsym(lib, "vkGetInstanceProcAddr");
+        if (!p_vkGetInstanceProcAddr) p_vkGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)dlsym(lib, "vk_icdGetInstanceProcAddr");
+        if (!p_vkGetInstanceProcAddr) { VKLOG("[RED] %s has no vkGetInstanceProcAddr; falling back to system libvulkan.so", custom_drv); dlclose(lib); lib = NULL; }
+    }
+    if (!lib) {
+        lib = dlopen("libvulkan.so", RTLD_NOW | RTLD_LOCAL);
+        if (!lib) die("[vk] libvulkan.so: %s", dlerror());
+        p_vkGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)dlsym(lib, "vkGetInstanceProcAddr");
+    }
     vkCreateInstance = (PFN_vkCreateInstance)p_vkGetInstanceProcAddr(NULL, "vkCreateInstance");
     const char *iext[] = {"VK_KHR_surface", "VK_KHR_android_surface", "VK_EXT_debug_utils"};
     VkApplicationInfo app = {VK_STRUCTURE_TYPE_APPLICATION_INFO, NULL, "dmhost", 1, "nxnative", 1, VK_API_VERSION_1_3};
@@ -62,8 +98,18 @@ void vk_init(void) {
     int validate = getenv("DM_VK_VALIDATE") && atoi(getenv("DM_VK_VALIDATE"));
     const char *layers[] = {"VK_LAYER_KHRONOS_validation"};
     VkInstanceCreateInfo ici = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, NULL, 0, &app, validate ? 1u : 0u, layers, validate ? 3u : 2u, iext};
-    VkResult ir = vkCreateInstance(&ici, NULL, &V.inst);
+    VkResult ir = vkCreateInstance ? vkCreateInstance(&ici, NULL, &V.inst) : VK_ERROR_INITIALIZATION_FAILED;
     if (ir && validate) { VKLOG("[RED] validation layer not available (%d): running without it", ir); validate = 0; ici.enabledLayerCount = 0; ici.enabledExtensionCount = 2; ir = vkCreateInstance(&ici, NULL, &V.inst); }
+    if (ir != VK_SUCCESS && custom_drv) {
+        VKLOG("[RED] custom driver %s vkCreateInstance returned %d; falling back to system libvulkan.so", custom_drv, ir);
+        dlclose(lib);
+        lib = dlopen("libvulkan.so", RTLD_NOW | RTLD_LOCAL);
+        if (!lib) die("[vk] libvulkan.so: %s", dlerror());
+        p_vkGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)dlsym(lib, "vkGetInstanceProcAddr");
+        vkCreateInstance = (PFN_vkCreateInstance)p_vkGetInstanceProcAddr(NULL, "vkCreateInstance");
+        ici.enabledLayerCount = 0; ici.enabledExtensionCount = 2;
+        ir = vkCreateInstance(&ici, NULL, &V.inst);
+    }
     VKCHK(ir);
     if (validate) {
         PFN_vkCreateDebugUtilsMessengerEXT mk = (PFN_vkCreateDebugUtilsMessengerEXT)p_vkGetInstanceProcAddr(V.inst, "vkCreateDebugUtilsMessengerEXT");
@@ -74,7 +120,20 @@ void vk_init(void) {
     }
 #define VK_LOADI(f) f = (PFN_##f)p_vkGetInstanceProcAddr(V.inst, #f);
     VK_FNS(VK_LOADI)
-    uint32_t n = 1; VKCHK(vkEnumeratePhysicalDevices(V.inst, &n, &V.pd)); if (!n) die("[vk] no GPU");
+    uint32_t n = 1; VkResult pr = vkEnumeratePhysicalDevices ? vkEnumeratePhysicalDevices(V.inst, &n, &V.pd) : VK_ERROR_INITIALIZATION_FAILED;
+    if ((pr || !n) && custom_drv) {
+        VKLOG("[RED] custom driver %s enumerated 0 GPUs (%d); falling back to system libvulkan.so", custom_drv, pr);
+        dlclose(lib);
+        lib = dlopen("libvulkan.so", RTLD_NOW | RTLD_LOCAL);
+        if (!lib) die("[vk] libvulkan.so: %s", dlerror());
+        p_vkGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)dlsym(lib, "vkGetInstanceProcAddr");
+        vkCreateInstance = (PFN_vkCreateInstance)p_vkGetInstanceProcAddr(NULL, "vkCreateInstance");
+        ici.enabledLayerCount = 0; ici.enabledExtensionCount = 2;
+        VKCHK(vkCreateInstance(&ici, NULL, &V.inst));
+        VK_FNS(VK_LOADI)
+        n = 1; pr = vkEnumeratePhysicalDevices(V.inst, &n, &V.pd);
+    }
+    VKCHK(pr); if (!n) die("[vk] no GPU");
     vkGetPhysicalDeviceProperties(V.pd, &V.props); vkGetPhysicalDeviceMemoryProperties(V.pd, &V.mem);
     uint32_t qn = 0; vkGetPhysicalDeviceQueueFamilyProperties(V.pd, &qn, NULL);
     VkQueueFamilyProperties qp[16]; if (qn > 16) qn = 16; vkGetPhysicalDeviceQueueFamilyProperties(V.pd, &qn, qp);
@@ -621,6 +680,7 @@ void vk_defer_free_image_sub(VkImage i, void *sub) { df_add(4, (void *)i, sub); 
 void img_sub_free_(void *s) { img_sub_free((imgsub *)s); }
 void vk_defer_free_image(VkImage i, VkDeviceMemory m) { df_add(1, (void *)i, (void *)m); }
 void vk_defer_free_view(VkImageView v) { df_add(2, (void *)v, NULL); }
+void vk_defer_free_tbuf(VkBufferView v) { df_add(3, (void *)v, NULL); }
 // Descriptor pools: the allocator counts what each set takes and moves to a new pool before any count runs out. Adreno's driver does not refuse an
 // allocation past a pool's sizes: it succeeds and the submission then fails as a whole at vkEndCommandBuffer (VK_ERROR_OUT_OF_HOST_MEMORY; NEO's
 // handheld frames with 32-slot texture arrays crossed the old 8192 combined-sampler limit at about the 712th draw)
@@ -869,7 +929,8 @@ static void *completion_main(void *a) {
             if (o->q >= 0 && tend && vkGetQueryPoolResults(V.dev, g_cq, (uint32_t)o->q, 1, 8, &tq, 8, VK_QUERY_RESULT_64_BIT) == VK_SUCCESS && tq <= tend) {
                 uint64_t back = (uint64_t)((double)(tend - tq) * V.props.limits.timestampPeriod * 12 / 625); if (back < now) ts = now - back; }
             // render_cond: a timestamp report's counter field is 0, as on the GPU (gfx_vk_exec.c render_cond evaluates conditions on it)
-            uint64_t rec[2] = {o->type == 0 || o->type == 0x10 ? (DM_GAME_RENDER_COND ? 0 : ts) : o->type == NVN_COUNTER_TYPE_SAMPLES_PASSED ? (1u << 20) : 0, ts}; memcpy((void *)(uintptr_t)o->addr, rec, sizeof rec);
+            static int rcond = -1; if (rcond < 0) { const char *e = getenv("DM_RENDER_COND"); rcond = e ? atoi(e) != 0 : 1; }
+            uint64_t rec[2] = {o->type == 0 || o->type == 0x10 ? (rcond ? 0 : ts) : o->type == NVN_COUNTER_TYPE_SAMPLES_PASSED ? (1u << 20) : 0, ts}; memcpy((void *)(uintptr_t)o->addr, rec, sizeof rec);
         }
         pthread_mutex_lock(&g_cmu); g_ch = c->next; if (!g_ch) g_ct = NULL; pthread_mutex_unlock(&g_cmu);
         if (g_prereset > 0 && c->rslot >= 0) { vksub_t *s = &g_slot[c->rslot];   // its command buffers reset here (slot_recycle); the slot is not taken before g_done passes this fence
