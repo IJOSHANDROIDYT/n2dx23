@@ -234,6 +234,10 @@ def heap_check_needed(exefs):   # va_heap from an extraction's ExeFS (the NSP sc
 def engine(F):   # keys that follow from the engine rather than from a general signal
     if 'hagi.config' in F['romfs']['root']:   # NERD's Hagi Wii layer: the pointer is the touch screen in handheld mode (docked it is the Joy-Con gyro, which the host does not have)
         return {'op_mode': ('handheld', 'Hagi (hagi.config): the Wii pointer is the touch screen in handheld mode'), 'pad_layout': ('full', 'Hagi: a 3D game pad (D-pad, right stick)')}
+    if 'shader.dat' in F['romfs']['root'] or F.get('program') == 0x0100B8E016F76000:
+        return {'pad_layout': ('full', 'PlatinumGames 3D action camera and D-pad weapon selection'),
+                'render_cond': ('on', 'NVN conditional rendering evaluated at replay'),
+                'tex_flush_upload': ('on', 'CPU-flushed textures uploaded on nvnMemoryPoolFlushMappedRange')}
     return {}
 
 
