@@ -50,6 +50,7 @@ typedef struct { unsigned int sample_rate; int channels; } stb_vorbis_info;
 static inline stb_vorbis *stb_vorbis_open_pushdata(const unsigned char *d, int l, int *u, int *e, const void *a) { (void)d; (void)l; (void)u; (void)a; if (e) *e = -1; return NULL; }
 static inline stb_vorbis_info stb_vorbis_get_info(stb_vorbis *v) { (void)v; return (stb_vorbis_info){48000, 2}; }
 static inline int stb_vorbis_decode_frame_pushdata(stb_vorbis *v, const unsigned char *d, int l, int *c, float ***o, int *n) { (void)v; (void)d; (void)l; if (c) *c = 0; if (o) *o = NULL; if (n) *n = 0; return 0; }
+static inline void stb_vorbis_flush_pushdata(stb_vorbis *v) { (void)v; }
 static inline void stb_vorbis_close(stb_vorbis *v) { (void)v; }
 #endif
 
