@@ -92,6 +92,13 @@ static void host_preload(int argc, char **argv) {
         for (char *t = strtok(s, " "); t && g_argc < 63; t = strtok(NULL, " ")) g_argv[g_argc++] = t;
         LOG("game arguments from the game profile: %s", DM_GAME_ARGS);
     }
+    if (!n) {
+        static const char *cands[] = {"main", "subsdk0", "subsdk1", "subsdk2", "subsdk3", "subsdk4", "subsdk5", "subsdk6", "subsdk7", "subsdk8", "subsdk9", "sdk"};
+        for (int k = 0; k < (int)(sizeof cands / sizeof *cands) && n < MAX_MOD; k++) {
+            char p[1024]; snprintf(p, sizeof p, "%s/%s.patched.bin", argv[1], cands[k]);
+            if (access(p, R_OK) == 0) names[n++] = cands[k];
+        }
+    }
     if (!n) { static const char *def[] = DM_GAME_MODULES; for (int k = 0; k < DM_GAME_NMOD && n < MAX_MOD; k++) names[n++] = def[k]; }   // default module list from the game profile's modules (Mario: main sdk)
     load_modules(argv[1], names, n);
     dm_sdk_major();   // logs the SDK version, which SDK-dependent behaviour follows (loader.c)

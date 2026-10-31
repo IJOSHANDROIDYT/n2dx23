@@ -7,11 +7,33 @@
 #include <pthread.h>
 #include <stdatomic.h>
 #include <unistd.h>
+#if __has_include("vpx/vpx_decoder.h")
+#define DM_HAVE_VPX 1
 #include "vpx/vpx_decoder.h"
 #include "vpx/vp8dx.h"
+#else
+#define DM_HAVE_VPX 0
+typedef struct { int dummy; } vpx_codec_ctx_t;
+typedef struct { unsigned int d_w, d_h; unsigned char *planes[4]; int stride[4]; int range, cs, fmt; } vpx_image_t;
+typedef struct { unsigned int threads, w, h; } vpx_codec_dec_cfg_t;
+typedef int vpx_codec_err_t;
+typedef const void *vpx_codec_iter_t;
+enum { VPX_CR_FULL_RANGE = 1, VPX_CS_UNKNOWN = 0, VPX_CS_BT_709 = 2, VPX_IMG_FMT_I420 = 0x102, VP9D_SET_ROW_MT = 1 };
+static inline const void *vpx_codec_vp9_dx(void) { return NULL; }
+static inline vpx_codec_err_t vpx_codec_dec_init(vpx_codec_ctx_t *c, const void *i, const vpx_codec_dec_cfg_t *cfg, long f) { (void)c; (void)i; (void)cfg; (void)f; return -1; }
+static inline const char *vpx_codec_err_to_string(vpx_codec_err_t e) { (void)e; return "no libvpx"; }
+static inline int vpx_codec_control(vpx_codec_ctx_t *c, int k, int v) { (void)c; (void)k; (void)v; return 0; }
+static inline const char *vpx_codec_version_str(void) { return "none"; }
+static inline int vpx_codec_decode(vpx_codec_ctx_t *c, const uint8_t *d, unsigned int sz, void *u, long dl) { (void)c; (void)d; (void)sz; (void)u; (void)dl; return -1; }
+static inline const char *vpx_codec_error(vpx_codec_ctx_t *c) { (void)c; return "no libvpx"; }
+static inline const char *vpx_codec_error_detail(vpx_codec_ctx_t *c) { (void)c; return NULL; }
+static inline vpx_image_t *vpx_codec_get_frame(vpx_codec_ctx_t *c, vpx_codec_iter_t *i) { (void)c; (void)i; return NULL; }
+static inline void vpx_codec_destroy(vpx_codec_ctx_t *c) { (void)c; }
+#endif
 #include "hle_movie_avc.h"   // H.264 on VideoToolbox
 #include <AudioToolbox/AudioToolbox.h>   // AAC
 // Vorbis (movie audio tracks, Link's Awakening): stb_vorbis, built into this file (dm/third_party/stb_vorbis); only its push-data API, floats out
+#if __has_include("stb_vorbis.c")
 #define STB_VORBIS_NO_STDIO
 #define STB_VORBIS_NO_PULLDATA_API
 #define STB_VORBIS_NO_INTEGER_CONVERSION
@@ -22,6 +44,14 @@
 #undef L
 #undef C
 #undef R
+#else
+typedef struct stb_vorbis stb_vorbis;
+typedef struct { unsigned int sample_rate; int channels; } stb_vorbis_info;
+static inline stb_vorbis *stb_vorbis_open_pushdata(const unsigned char *d, int l, int *u, int *e, const void *a) { (void)d; (void)l; (void)u; (void)a; if (e) *e = -1; return NULL; }
+static inline stb_vorbis_info stb_vorbis_get_info(stb_vorbis *v) { (void)v; return (stb_vorbis_info){48000, 2}; }
+static inline int stb_vorbis_decode_frame_pushdata(stb_vorbis *v, const unsigned char *d, int l, int *c, float ***o, int *n) { (void)v; (void)d; (void)l; if (c) *c = 0; if (o) *o = NULL; if (n) *n = 0; return 0; }
+static inline void stb_vorbis_close(stb_vorbis *v) { (void)v; }
+#endif
 
 #if 0
 HLE_FORCE("_ZN5movie9Extractor13SetDataSourceEPKc", "movie demuxer: the host does not play movies yet, opening fails (0x1000)", int, h_movie_SetSource, void *self, const char *path) {
@@ -219,6 +249,7 @@ static void md_dims(const mdec_t *d, int *w, int *h, int *stride, int *slice) {
 // ---------- Host decoding thread ----------
 enum { MDJ_NONE, MDJ_DECODE, MDJ_CLOSE, MDJ_QUIT, MDJ_TAKE, MDJ_TAIL };
 static int md_threads(void) { long n = sysconf(_SC_NPROCESSORS_ONLN); return n >= 8 ? 4 : 2; }
+#if DM_HAVE_VPX
 // I420 → NV12 (stride = width, plane height = height); a smaller picture is padded with black, a larger one cropped
 static void md_nv12(const vpx_image_t *im, uint8_t *dst, int w, int h) {
     int cw = (int)im->d_w < w ? (int)im->d_w : w, ch = (int)im->d_h < h ? (int)im->d_h : h;
@@ -278,6 +309,9 @@ static int md_vp9(mdec_t *d, const uint8_t *p, int n, int slot) {
     if (rgba) md_rgba(last, d->out[slot].frm, d->w, d->h); else md_nv12(last, d->out[slot].frm, d->w, d->h);
     return 1;
 }
+#else
+static int md_vp9(mdec_t *d, const uint8_t *p, int n, int slot) { (void)d; (void)p; (void)n; (void)slot; return 0; }
+#endif
 // ---------- Vorbis ----------
 // The demuxer hands over raw Vorbis packets (WebM blocks); stb_vorbis reads Ogg pages, so each packet goes in as one page of its own: the three headers first
 // (identification and setup from Configure, a comment header made up here: stb_vorbis only checks its type), then one page per audio packet. The page CRC is filled in:
@@ -413,7 +447,12 @@ static int md_avc(mdec_t *d, const uint8_t *p, int n, int slot, int take_only) {
     if (d->out[slot].cap < need) { free(d->out[slot].frm); d->out[slot].frm = malloc(need); d->out[slot].cap = need; }
     return mavc_take(d->avc, d->jflush, d->out[slot].frm, d->w, d->h, &d->jpts_out);
 }
-static void md_close(mdec_t *d) { if (d->vpx_on) { vpx_codec_destroy(&d->vpx); d->vpx_on = 0; } if (d->vb) { stb_vorbis_close(d->vb); d->vb = NULL; } if (d->aac) { AudioConverterDispose(d->aac); d->aac = NULL; } if (d->avc) { mavc_free(d->avc); d->avc = NULL; } }
+static void md_close(mdec_t *d) {
+#if DM_HAVE_VPX
+    if (d->vpx_on) { vpx_codec_destroy(&d->vpx); d->vpx_on = 0; }
+#endif
+    if (d->vb) { stb_vorbis_close(d->vb); d->vb = NULL; } if (d->aac) { AudioConverterDispose(d->aac); d->aac = NULL; } if (d->avc) { mavc_free(d->avc); d->avc = NULL; }
+}
 void dm_host_helper_qos(qos_class_t q);   // hle_thread.c
 static void *md_worker(void *arg) {
     mdec_t *d = arg;

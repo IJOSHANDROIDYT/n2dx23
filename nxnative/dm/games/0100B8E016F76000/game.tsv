@@ -1,0 +1,23 @@
+# Game profile of NieR:Automata The End of YoRHa Edition (Switch, 0100B8E016F76000)
+title_id	0100B8E016F76000
+program_id	0100B8E016F76000
+name	NieR:Automata The End of YoRHa Edition
+ipa	NieRAutomata.ipa
+app_category	public.app-category.action-games
+pad_layout	full
+build	v0	1.0.2	main=00000000000000000000000000000000	sdk=00000000000000000000000000000000
+package	v0
+shader_versions	v0
+modules	main sdk
+romfs_marker	shader.dat
+zip_store	.cpk:.usm:.bnk:.pck:.dat
+mem_reserve	0x100000000
+mem_alias	0x10000000
+mem_stack	0x10000000
+app_pool	0xCD500000
+sys_resource	0x0
+mem_used	0x7400000
+render_cond	on
+tex_flush_upload	on
+shader_groups	/shader=core
+shader_note	NieR:Automata shaders
